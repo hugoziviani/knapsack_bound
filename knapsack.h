@@ -8,54 +8,57 @@
 #include <queue>
 #include <fstream>
 
-
 using namespace std;
 
-
-// Structure for Item which store profit and corresponding
-// weight of Item
+// Structure for Item which store weight and corresponding
+// prof of Item
 struct Item
 {
     int id;
-    float profit;
-    int weight;
+    float weight;
+    int prof;
 };
 
 
-// Node structure to store information of decision
-// tree
+// Nó para a confecção da arvore de decisao para a poda
 struct Node
 {
     // level  --> Level of node in decision tree (or index
     //             in arr[]
-    // profit --> Profit of nodes on path from root to this
+    // weight --> Profit of nodes on path from root to this
     //            node (including this node)
-    // bound ---> Upper bound of maximum profit in subtree
+    // bound ---> Upper makeBound of maximum weight in subtree
     //            of this node/
     int level, profit, bound;
     float weight;
 };
-
-// Comparison function to sort Item according to
-// val/profit ratio
-bool cmp(Item a, Item b)
-{
-    double r1 = (double)a.weight / a.profit;
-    double r2 = (double)b.weight / b.profit;
-    return r1 > r2;
+void printItems(vector<Item> items){
+    for (auto it : items){
+        cout << "ID:" << it.id
+             << " Lucro: " << it.prof
+             << " Peso: " << it.weight << endl;
+    }
 }
 
-// Returns bound of profit in subtree rooted with u.
+// funcao parametro para ordenar o vetor de valores pelo peso
+bool compareItemsByWeight(Item a, Item b){
+        double reason1, reason2;
+        reason2 = (double)b.prof / b.weight;
+        reason1 = (double)a.prof / a.weight;
+    return reason1 > reason2;
+}
+
+// Returns makeBound of weight in subtree rooted with u.
 // This function mainly uses Greedy solution to find
-// an upper bound on maximum profit.
-int bound(Node u, int n, int W, Item arr[])
+// an upper makeBound on maximum weight.
+int makeBound(Node u, int n, int W, vector<Item> arr)
 {
-    // if profit overcomes the knapsack capacity, return
-    // 0 as expected bound
+    // if weight overcomes the knapsack capacity, return
+    // 0 as expected makeBound
     if (u.weight >= W)
         return 0;
 
-    // initialize bound on profit by current profit
+    // initialize makeBound on weight by current weight
     int profit_bound = u.profit;
 
     // start including items from index 1 more to current
@@ -65,95 +68,94 @@ int bound(Node u, int n, int W, Item arr[])
 
     // checking index condition and knapsack capacity
     // condition
-    while ((j < n) && (totweight + arr[j].profit <= W))
+    while ((j < n) && (totweight + arr[j].weight <= W))
     {
-        totweight    += arr[j].profit;
-        profit_bound += arr[j].weight;
+        totweight    += arr[j].weight;
+        profit_bound += arr[j].prof;
         j++;
     }
 
     // If k is not n, include last item partially for
-    // upper bound on profit
+    // upper makeBound on weight
     if (j < n)
-        profit_bound += (W - totweight) * arr[j].weight /
-                        arr[j].profit;
+        profit_bound += (W - totweight) * arr[j].prof /
+                        arr[j].weight;
 
     return profit_bound;
 }
 
-// Returns maximum profit we can get with capacity W
-int knapsack(int W, Item arr[], int n)
-{
-    // sorting Item on basis of weight per unit
-    // profit.
-    sort(arr, arr + n, cmp);
+// Returns maximum weight we can get with capacity W
+vector<Item> knapsack(int W, vector<Item> &items, int n, int** conflictMatrixReference){
+    vector<Item> bagSolution;
 
-    // make a queue for traversing the node
-    queue<Node> Q;
-    Node u, v;
+// TODO: se nao funcionar mudar o +n
+//    sort(items.begin(), items.end()+n, compareItemsByWeight);
+    sort(items.begin(), items.end(), compareItemsByWeight);
 
-    // dummy node at starting
-    u.level = -1;
-    u.profit = u.weight = 0;
-    Q.push(u);
-
-    // One by one extract an item from decision tree
-    // compute profit of all children of extracted item
-    // and keep saving maxProfit
+    // fila para processar os elementos
+    queue<Node> queueToProcess;
+    Node root, node;
+    // nó do início
+    root.level = -1;
+    root.profit = 0;
+    root.weight = 0;
+    queueToProcess.push(root);
+    // salva o limite inferior do lucro (maximo lucro até o momento).
+    // separa os itens para processamento de cada nó
     int maxProfit = 0;
-    while (!Q.empty())
-    {
-        // Dequeue a node
-        u = Q.front();
-        Q.pop();
-
-        // If it is starting node, assign level 0
-        if (u.level == -1)
-            v.level = 0;
-
-        // If there is nothing on next level
-        if (u.level == n-1)
+    while (!queueToProcess.empty()){
+        root = queueToProcess.front(); // tira o primeiro nó p/ processar
+        queueToProcess.pop();
+        if (root.level == -1) // se é raiz, inicia com zero
+            node.level = 0;
+        //se nao tem nada no proximo level continua
+        //TODO: talvez procurar aqui se existe conflito
+        // criar uma bag solution, que vai guardando os nós/chaves que sao utilizados
+        if (root.level == n - 1)
             continue;
 
-        // Else if not last node, then increment level,
-        // and compute profit of children nodes.
-        v.level = u.level + 1;
+        // se não for o ultimo nó, vamos para o próximo nível
+        // para computar o lucro dos nós-filhos
+        node.level = root.level + 1;
 
-        // Taking current level's item add current
-        // level's profit and weight to node u's
-        // profit and weight
-        v.weight = u.weight + arr[v.level].profit;
-        v.profit = u.profit + arr[v.level].weight;
+        // Pega o atual item, seu lucro, e atualiza para ser a nova raiz da busca.
+        node.weight = root.weight + items[node.level].weight;
+        node.profit = root.profit + items[node.level].prof;
 
-        // If cumulated profit is less than W and
-        // profit is greater than previous profit,
-        // update maxprofit
-        if (v.weight <= W && v.profit > maxProfit)
-            maxProfit = v.profit;
 
-        // Get the upper bound on profit to decide
-        // whether to add v to Q or not.
-        v.bound = bound(v, n, W, arr);
+        //Se o lucro for menor que a capacidade e maior que o lucro anterior, atualiza o lucro maximo
+        if (node.weight <= W && node.profit > maxProfit){
+            maxProfit = node.profit;
+            bagSolution.push_back(items[node.level]);
+        }
 
-        // If bound weight is greater than profit,
-        // then only push into queue for further
-        // consideration
-        if (v.bound > maxProfit)
-            Q.push(v);
 
-        // Do the same thing,  but Without taking
-        // the item in knapsack
-        v.weight = u.weight;
-        v.profit = u.profit;
-        v.bound = bound(v, n, W, arr);
-        if (v.bound > maxProfit)
-            Q.push(v);
+
+
+        // pega o maior valor resultante da poda para decidir
+        // e ver se adiciona ou nao na fila de processos
+        node.bound = makeBound(node, n, W, items);
+
+        // se o resultado da função for maior que o lucro, só coloca na fila por consideracao
+        if (node.bound > maxProfit)
+            queueToProcess.push(node);
+
+        // faça a mesma operacao, sem alocar o item na mochila
+        node.weight = root.weight;
+        node.profit = root.profit;
+        node.bound = makeBound(node, n, W, items);
+        if (node.bound > maxProfit){
+            queueToProcess.push(node);
+
+
+        }
+
     }
-
-    return maxProfit;
+    cout<<"MaxProfit: "<<maxProfit<<endl;
+    return bagSolution;
 }
 
-int** createConflictMatrix(int sizeMatrix)
+int** alocateConflictMatrix(int sizeMatrix)
 {
     unsigned height = sizeMatrix;
     unsigned width = sizeMatrix;
@@ -168,20 +170,13 @@ int** createConflictMatrix(int sizeMatrix)
 }
 
 void printConflictMatrix(int ** conflictsMatrix, int sizeMatrix){
-    auto height = sizeMatrix;
+    auto height = sizeMatrix; //matriz quadrada
     auto width = sizeMatrix;
     for (int h = 0; h < height; h++){
         for (int w = 0; w < width; w++){
             cout<<conflictsMatrix[h][w];
         }
         cout<<endl;
-    }
-}
-void printItems(vector<Item> items){
-    for (auto it : items){
-        cout<<"ID:"<<it.id
-            <<" Peso: "<<it.weight
-            <<" Lucro: "<<it.profit<<endl;
     }
 }
 
@@ -199,7 +194,7 @@ void readFileAndFeedAlgorithm(){
         capacity = stoi(buff);
         fin.getline(buff, MAX);
         numberOfItens = stoi(buff);
-        auto conflictsMatrix = createConflictMatrix(numberOfItens);
+        auto conflictsMatrix = alocateConflictMatrix(numberOfItens);
 
         while (itemsControl < numberOfItens){ // leitura dos lucros
             fin.getline(buff, MAX);
@@ -214,7 +209,7 @@ void readFileAndFeedAlgorithm(){
             const int the_key =  itemsControl+1;
             //busca pela chave correta para inserir o peso no objeto
             auto it = find_if(items.begin(), items.end(), [the_key] ( const Item& a ) { return a.id == the_key ;});
-            if (it != items.end()){ it->weight = weight;}
+            if (it != items.end()){ it->prof = weight;}
             itemsControl++;
         }
         fin.getline(buff, MAX);
@@ -238,7 +233,6 @@ void readFileAndFeedAlgorithm(){
         printItems(items);
         break;
     }
-
 }
 
 
