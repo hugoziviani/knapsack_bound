@@ -7,6 +7,7 @@
 
 #include <queue>
 #include <fstream>
+#include <iostream>
 
 using namespace std;
 
@@ -18,7 +19,6 @@ struct Item
     float weight;
     int prof;
 };
-
 
 // Nó para a confecção da arvore de decisao para a poda
 struct Node
@@ -41,12 +41,12 @@ void printItems(vector<Item> items){
     }
 }
 
-bool verifyConcurrence(int** conflictMatrixReference,vector<Item> &bagSolution,  int actualItemId){
+bool verifyConcurrence(vector<vector<int>> conflictMatrixReference, vector<Item> &bagSolution,  int actualItemId){
     // recebe a matriz de concorrencia,
     // o vetor das solucoes ate o momento
     // indice do atual elemento a ser inserido.
     // na primeira ocorrencia de conflito, já retorna o pau moendo
-    if(conflictMatrixReference== nullptr or bagSolution.empty()){
+    if(conflictMatrixReference.empty() or bagSolution.empty()){
         return false;//nao existe conflito
     }
     for(auto it : bagSolution){
@@ -60,16 +60,16 @@ bool verifyConcurrence(int** conflictMatrixReference,vector<Item> &bagSolution, 
 }
 // funcao parametro para ordenar o vetor de valores pelo peso
 bool compareItemsByWeight(Item a, Item b){
-        double reason1, reason2;
-        reason2 = (double)b.prof / b.weight;
-        reason1 = (double)a.prof / a.weight;
+    double reason1, reason2;
+    reason2 = (double)b.prof / b.weight;
+    reason1 = (double)a.prof / a.weight;
     return reason1 > reason2;
 }
 
 // Returns makeBound of weight in subtree rooted with actualNode.
 // This function mainly uses Greedy solution to find
 // an upper makeBound on maximum weight.
-int makeBound(Node actualNode, int n, int capacity, vector<Item> arr)
+int makeBound(Node actualNode, int n, int capacity, vector<Item> *arr)
 {
     // if weight overcomes the knapsack capacity, return
     // 0 as expected makeBound
@@ -86,29 +86,26 @@ int makeBound(Node actualNode, int n, int capacity, vector<Item> arr)
 
     // checking index condition and knapsack capacity
     // condition
-    while ((j < n) and (totweight + arr[j].weight <= capacity))
+    while ((j < n) and (totweight + arr->at(j).weight <= capacity))
     {
-        totweight    += arr[j].weight;
-        profit_bound += arr[j].prof;
+        totweight    += arr->at(j).weight;
+        profit_bound += arr->at(j).prof;
         j++;
     }
 
     // If k is not n, include last item partially for
     // upper makeBound on weight
     if (j < n)
-        profit_bound += (capacity - totweight) * arr[j].prof /
-                        arr[j].weight;
+        profit_bound += (capacity - totweight) * arr->at(j).prof /
+                        arr->at(j).weight;
 
     return profit_bound;
 }
 
 // Returns maximum weight we can get with capacity capacity
-vector<Item> knapsack(int capacity, vector<Item> &items, int n, int** conflictMatrixReference){
+vector<Item> knapsack(int capacity, vector<Item> *items, int n, vector<vector<int>> conflictMatrixReference){
     vector<Item> bagSolution;
 
-// TODO: se nao funcionar mudar o +n
-//    sort(items.begin(), items.end()+n, compareItemsByWeight);
-    sort(items.begin(), items.end(), compareItemsByWeight);
 
     // fila para processar os elementos
     queue<Node> queueToProcess;
@@ -137,9 +134,9 @@ vector<Item> knapsack(int capacity, vector<Item> &items, int n, int** conflictMa
         node.level = root.level + 1;
 
         // Pega o atual item, seu lucro, e atualiza para ser a nova raiz da busca.
-        node.id = items[node.level].id;
-        node.weight = root.weight + items[node.level].weight;
-        node.profit = root.profit + items[node.level].prof;
+        node.id = items->at(node.level).id;
+        node.weight = root.weight + items->at(node.level).weight;
+        node.profit = root.profit + items->at(node.level).prof;
 
 
         //Se o lucro for menor que a capacidade e maior que o lucro anterior, atualiza o lucro maximo
@@ -147,10 +144,8 @@ vector<Item> knapsack(int capacity, vector<Item> &items, int n, int** conflictMa
         auto concurrence = verifyConcurrence(conflictMatrixReference, bagSolution, node.id);
         if (node.weight <= capacity and node.profit > maxProfit and !concurrence){
             maxProfit = node.profit;
-            bagSolution.push_back(items[node.level]);
+            bagSolution.push_back(items->at(node.level));
         }
-
-
 
 
         // pega o maior valor resultante da poda para decidir
@@ -168,39 +163,32 @@ vector<Item> knapsack(int capacity, vector<Item> &items, int n, int** conflictMa
         if (node.bound > maxProfit){
             queueToProcess.push(node);
         }
-
     }
     cout<<"MaxProfit: "<<maxProfit<<endl;
+    // TODO: Criar uma estrutura que retorna os dados da solucao
     return bagSolution;
 }
 
-int** alocateConflictMatrix(int sizeMatrix)
+vector<vector<int>> alocateConflictMatrix(int sizeMatrix)
 {
-    unsigned height = sizeMatrix;
-    unsigned width = sizeMatrix;
-    auto conflictsMatrix = new int*[height];
-    for (int h = 0; h < height; h++){
-        conflictsMatrix[h] = new int[width];
-        for (int w = 0; w < width; w++){
-            conflictsMatrix[h][w] = 0;
-        }
-    }
-    return conflictsMatrix;
+    auto height = sizeMatrix;
+    auto width = sizeMatrix;
+    return std::vector<std::vector<int>>(height, std::vector<int>(width, 0));
 }
 
-void printConflictMatrix(int ** conflictsMatrix, int sizeMatrix){
-    auto height = sizeMatrix; //matriz quadrada
-    auto width = sizeMatrix;
-    for (int h = 0; h < height; h++){
-        for (int w = 0; w < width; w++){
-            cout<<conflictsMatrix[h][w];
+void printConflictMatrix(vector<vector<int>> matrix, int sizeMatrix){
+    for (int i = 0; i < matrix.size(); i++)
+    {
+        for (int j = 0; j < matrix[i].size(); j++)
+        {
+            cout << matrix[i][j] << " ";
         }
-        cout<<endl;
+        cout << endl;
     }
 }
 
 void readFileAndFeedAlgorithm(){
-    const int MAX = 100;
+    const int MAX = 10;
     char buff[MAX];
     ifstream fin("/Users/hz/CLionProjects/knapsack_bound/input/n50c36dc0.64.knpc");
 
@@ -217,18 +205,18 @@ void readFileAndFeedAlgorithm(){
 
         while (itemsControl < numberOfItens){ // leitura dos lucros
             fin.getline(buff, MAX);
-            auto profit = stof(buff);
-            items.push_back({itemsControl + 1, profit, 0}); //insere o elemento no vector de itens
+            auto profit = stoi(buff);
+            items.push_back({itemsControl, 0, profit}); //insere o elemento no vector de itens
             itemsControl++;
         }
         itemsControl = 0;
         while (itemsControl < numberOfItens){
             fin.getline(buff, MAX);
             auto weight = stof(buff);
-            const int the_key =  itemsControl+1;
+            const int the_key =  itemsControl;
             //busca pela chave correta para inserir o peso no objeto
             auto it = find_if(items.begin(), items.end(), [the_key] ( const Item& a ) { return a.id == the_key ;});
-            if (it != items.end()){ it->prof = weight;}
+            if (it != items.end()){ it->weight = weight;}
             itemsControl++;
         }
         fin.getline(buff, MAX);
@@ -238,7 +226,8 @@ void readFileAndFeedAlgorithm(){
             // leitura dos pares de conflitos
             auto delim = " ";
             fin.getline(buff, MAX);
-            int i, j;
+            int i;
+            int j = 0;
             char * token = strtok(buff, delim);
             i = stoi(token);
             while(token != NULL) {
@@ -246,10 +235,25 @@ void readFileAndFeedAlgorithm(){
                 token = strtok(NULL, delim);
             }
             conflictsMatrix[i][j] = 1; // seta 1 onde tem conflito
+            conflictsMatrix[j][i] = 1;
             itemsControl++;
         }
-//        printConflictMatrix(conflictsMatrix, numberOfItens);
+        //TODO: verificar, quantidade de itens e quantos estao sendo alocados
+        printConflictMatrix(conflictsMatrix, numberOfItens);
         printItems(items);
+
+        sort(items.begin(), items.end(), compareItemsByWeight);
+        auto s = knapsack(capacity, &items, items.size(), conflictsMatrix);
+
+        auto sumW = 0.0;
+        auto sumP = 0.0;
+        for(auto v:s){
+            sumW+= v.weight;
+            sumP+= v.prof;
+        }
+        cout<<"Soma do peso: "<<sumW<<endl;
+        cout<<"Soma do lucro: "<<sumP<<endl;
+
         break;
     }
 }
