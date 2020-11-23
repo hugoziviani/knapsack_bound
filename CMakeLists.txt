@@ -3,4 +3,4 @@ project(knapsack_bound)
 
 set(CMAKE_CXX_STANDARD 14)
 
-add_executable(knapsack_bound main.cpp knapsack.h)
+add_executable(knapsack_bound main.cpp knapsack.h later.h)
